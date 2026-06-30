@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>CPRタイマー Ver.1.1</title>
+  <style>
+    :root{
+      --bg:#0f141a;--panel:#151b22;--line:#2a3540;--text:#eaf0f6;--muted:#9aa7b4;
+      --red:#ff5d5d;--red-dark:#6d2222;--blue:#67c7ff;--blue-dark:#183b55;
+      --green:#9df2a6;--green-dark:#244f2b;--yellow:#ffd86b;--yellow-dark:#5a4618;
+      --purple:#c9a7ff;--purple-dark:#3e2c5f;--orange:#ffb36b;--orange-dark:#5b3418;
+      --cyan:#9cf7ff;--cyan-dark:#174a50;--btn:#263241;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:10px;-webkit-tap-highlight-color:transparent}
+    .app{max-width:760px;margin:0 auto;padding-bottom:28px}.top{position:sticky;top:0;z-index:5;background:linear-gradient(180deg,var(--bg) 88%,rgba(15,20,26,0));padding-bottom:8px}
+    h1{font-size:22px;margin:4px 0;line-height:1.2}.ver{color:var(--muted);font-size:13px;font-weight:500}
+    .clock{font-size:44px;font-weight:900;letter-spacing:1px;text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px 8px;margin:8px 0;font-variant-numeric:tabular-nums}
+    .elapsedRow,.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}.miniCard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:9px;text-align:center}.miniLabel{font-size:13px;color:var(--muted);margin-bottom:3px}.miniValue{font-size:24px;font-weight:800}.voiceStatus{font-size:13px;color:var(--muted);text-align:center;margin-top:4px;min-height:18px}
+    button{border:0;border-radius:16px;color:var(--text);font-weight:900;font-size:18px;padding:14px 8px;min-height:76px;box-shadow:0 2px 0 rgba(0,0,0,.35);touch-action:manipulation}button:active{transform:translateY(1px);box-shadow:none}
+    .btnStart{background:#1e4d2b;color:var(--green)}.btnReset{background:#4c2020;color:#ffc3c3}.btnVoice{background:#27445f;color:#d7ecff}.btnSmall{min-height:48px;font-size:15px;border-radius:12px;padding:8px;background:var(--btn);color:var(--text)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.eventBtn{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;text-align:center;min-height:126px;border:1px solid rgba(255,255,255,.08)}.eventTitle{font-size:21px;line-height:1.15}.eventSub{font-size:14px;font-weight:800;opacity:.9}.timer{font-size:35px;letter-spacing:1px;font-variant-numeric:tabular-nums}.count{font-size:15px;color:rgba(255,255,255,.9)}
+    .shock{background:var(--red-dark);color:#ffd0d0}.epi{background:var(--blue-dark);color:#caecff}.airway{background:var(--green-dark);color:#d9ffd9}.iv{background:var(--cyan-dark);color:#d9fdff}.cprStop{background:var(--orange-dark);color:#ffe0c5}.startCpr{background:#1d4b2a;color:#dcffdf}.expired{color:#ff3b3b!important;text-shadow:0 0 10px rgba(255,70,70,.35)}.wide{grid-column:span 2}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px;margin-top:10px}.panelTitle{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:17px;font-weight:900;margin-bottom:8px}.interruptBox{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center}.interruptTime{text-align:center;font-size:40px;font-weight:900;color:var(--orange);font-variant-numeric:tabular-nums}
+    .log{display:flex;flex-direction:column-reverse;gap:7px;max-height:310px;overflow:auto}.logItem{border-left:5px solid var(--line);background:#101820;border-radius:10px;padding:8px 10px;font-size:16px;line-height:1.35}.logTime{font-weight:900;margin-right:6px;color:var(--yellow)}.logMeta{color:var(--muted);font-size:13px;margin-top:2px}.hint{color:var(--muted);font-size:13px;line-height:1.45;margin-top:8px}
+    @media(max-width:430px){body{padding:8px}.clock{font-size:39px}.eventTitle{font-size:19px}.timer{font-size:32px}button{padding:12px 6px}.grid{gap:8px}.eventBtn{min-height:118px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <h1>CPRタイマー <span class="ver">Ver.1.1</span></h1>
+      <div id="clock" class="clock">--:--:--</div>
+      <div class="elapsedRow">
+        <div class="miniCard"><div class="miniLabel">CPR経過</div><div id="cprElapsed" class="miniValue">00:00</div></div>
+        <div class="miniCard"><div class="miniLabel">最終記録</div><div id="lastAction" class="miniValue">未開始</div></div>
+      </div>
+      <div class="controls">
+        <button id="startBtn" class="btnStart">CPR開始</button>
+        <button id="voiceBtn" class="btnVoice">音声入力 OFF</button>
+      </div>
+      <div id="voiceStatus" class="voiceStatus">音声操作：CPR開始／LT挿入完了／挿管完了／IV確保完了／アドレナリン／ショック／心マ止め／心マ開始</div>
+    </div>
+
+    <div class="grid">
+      <button id="airwayBtn" class="eventBtn airway"><div class="eventTitle">気道デバイス</div><div id="airwayTime" class="timer">--:--</div><div id="airwayText" class="count">LT／挿管</div></button>
+      <button id="ivBtn" class="eventBtn iv"><div class="eventTitle">IV確保</div><div id="ivTime" class="timer">--:--</div><div id="ivText" class="count">未実施</div></button>
+      <button id="epiBtn" class="eventBtn epi"><div class="eventTitle">アドレナリン</div><div id="epiTimer" class="timer">--:--</div><div id="epiCount" class="count">0投目 / 4分</div></button>
+      <button id="shockBtn" class="eventBtn shock"><div class="eventTitle">ショック ⚡️</div><div id="shockTimer" class="timer">--:--</div><div id="shockCount" class="count">0回目 / 2分</div></button>
+    </div>
+
+    <div class="panel">
+      <div class="panelTitle">心マ停止時間</div>
+      <div class="interruptBox">
+        <button id="cprStopBtn" class="eventBtn cprStop"><div class="eventTitle">心マ停止</div><div class="eventSub">心マ止め</div></button>
+        <div>
+          <div id="cprStopTime" class="interruptTime">00.0</div>
+          <button id="cprStartBtn" class="btnSmall startCpr" style="width:100%;margin-top:8px">心マ開始</button>
+          <div id="cprStopState" class="miniLabel" style="text-align:center;margin-top:6px">圧迫中</div>
+        </div>
+      </div>
+      <div class="controls" style="margin-top:10px;margin-bottom:0">
+        <button id="resetBtn" class="btnSmall">全リセット</button>
+        <button id="copyBtn" class="btnSmall">ログコピー</button>
+      </div>
+      <div class="hint">ショックは実施後2分、アドレナリンは実施後4分でカウントダウンします。0:00で赤文字・通知音。心マ停止は「心マ止め」で秒数カウントアップ、「心マ開始」で停止時間を記録してリセットします。</div>
+    </div>
+
+    <div class="panel">
+      <div class="panelTitle"><span>記録ログ</span><button id="clearLogBtn" class="btnSmall" style="width:96px">ログ消去</button></div>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+<script>
+const $=id=>document.getElementById(id);
+const state={startedAt:null,shockCount:0,epiCount:0,shockDue:null,epiDue:null,lastAction:'未開始',logs:[],alarmed:{shock:false,epi:false},cprStopRunning:false,cprStopStart:null,voiceOn:false,recognition:null};
+let audioCtx=null;
+function pad(n){return String(n).padStart(2,'0')}function now(){return new Date()}function timeHMS(d=now()){return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`}function timeHM(d=now()){return `${pad(d.getHours())}:${pad(d.getMinutes())}`}
+function mmss(ms){const total=Math.max(0,Math.ceil(ms/1000));return `${pad(Math.floor(total/60))}:${pad(total%60)}`}function elapsed(ms){const total=Math.max(0,Math.floor(ms/1000));return `${pad(Math.floor(total/60))}:${pad(total%60)}`}
+function playBeep(){try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.value=880;g.gain.setValueAtTime(.001,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.35,audioCtx.currentTime+.02);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.45);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+.5);if(navigator.vibrate)navigator.vibrate([120,80,120])}catch(e){}}
+function ensureStarted(){if(!state.startedAt){state.startedAt=Date.now();addLog('CPR開始','タイマー開始')}}
+function addLog(label,meta=''){state.logs.push({t:timeHM(),label,meta});state.lastAction=label;renderLog()}
+function renderLog(){$('log').innerHTML=state.logs.map(i=>`<div class="logItem"><span class="logTime">${i.t}</span>${i.label}${i.meta?`<div class="logMeta">${i.meta}</div>`:''}</div>`).join('');$('lastAction').textContent=state.lastAction}
+function setCountdown(elId,due,key){const el=$(elId);if(!due){el.textContent='--:--';el.classList.remove('expired');return}const remain=due-Date.now();el.textContent=mmss(remain);if(remain<=0){el.classList.add('expired');if(!state.alarmed[key]){state.alarmed[key]=true;playBeep()}}else el.classList.remove('expired')}
+function tick(){$('clock').textContent=timeHMS();$('cprElapsed').textContent=state.startedAt?elapsed(Date.now()-state.startedAt):'00:00';setCountdown('shockTimer',state.shockDue,'shock');setCountdown('epiTimer',state.epiDue,'epi');if(state.cprStopRunning){const sec=(Date.now()-state.cprStopStart)/1000;$('cprStopTime').textContent=sec.toFixed(1).padStart(4,'0')}}
+function cprStart(){if(!state.startedAt){state.startedAt=Date.now();addLog('CPR開始','タイマー開始')}else addLog('CPR開始',elapsed(Date.now()-state.startedAt))}
+function airway(kind='気道デバイス'){ensureStarted();const label=kind==='LT'?'LT挿入完了':kind==='挿管'?'挿管完了':'気道デバイス実施';$('airwayTime').textContent=timeHM();$('airwayText').textContent=label;addLog(label,'気道デバイス')}
+function iv(){ensureStarted();$('ivTime').textContent=timeHM();$('ivText').textContent='IV確保完了';addLog('IV確保完了','')}
+function epi(){ensureStarted();state.epiCount++;state.epiDue=Date.now()+4*60*1000;state.alarmed.epi=false;$('epiCount').textContent=`${state.epiCount}投目 / 4分`;addLog(`アドレナリン${state.epiCount}投目`,'4分タイマー開始');tick()}
+function shock(){ensureStarted();state.shockCount++;state.shockDue=Date.now()+2*60*1000;state.alarmed.shock=false;$('shockCount').textContent=`${state.shockCount}回目 / 2分`;addLog(`ショック${state.shockCount}回目実施`,'2分タイマー開始');tick()}
+function cprStop(){ensureStarted();if(state.cprStopRunning)return;state.cprStopRunning=true;state.cprStopStart=Date.now();$('cprStopState').textContent='心マ停止中';addLog('心マ停止','中断時間カウント開始')}
+function cprRestart(){ensureStarted();if(!state.cprStopRunning){addLog('心マ開始','圧迫中');$('cprStopTime').textContent='00.0';return}const ms=Date.now()-state.cprStopStart;state.cprStopRunning=false;$('cprStopState').textContent='圧迫中';$('cprStopTime').textContent='00.0';addLog('心マ開始',`心マ停止 ${(ms/1000).toFixed(1)} 秒`)}
+$('startBtn').onclick=cprStart;$('airwayBtn').onclick=()=>airway();$('ivBtn').onclick=iv;$('epiBtn').onclick=epi;$('shockBtn').onclick=shock;$('cprStopBtn').onclick=cprStop;$('cprStartBtn').onclick=cprRestart;
+$('resetBtn').onclick=()=>{if(!confirm('全てのタイマーとログをリセットしますか？'))return;Object.assign(state,{startedAt:null,shockCount:0,epiCount:0,shockDue:null,epiDue:null,lastAction:'未開始',logs:[],alarmed:{shock:false,epi:false},cprStopRunning:false,cprStopStart:null});$('shockCount').textContent='0回目 / 2分';$('epiCount').textContent='0投目 / 4分';$('airwayTime').textContent='--:--';$('airwayText').textContent='LT／挿管';$('ivTime').textContent='--:--';$('ivText').textContent='未実施';$('cprStopTime').textContent='00.0';$('cprStopState').textContent='圧迫中';renderLog();tick()};
+$('copyBtn').onclick=async()=>{const text=state.logs.map(i=>`${i.t} ${i.label}${i.meta?' / '+i.meta:''}`).join('\n');try{await navigator.clipboard.writeText(text);alert('ログをコピーしました')}catch(e){prompt('コピーできない場合はこちらを長押しコピーしてください',text)}};$('clearLogBtn').onclick=()=>{if(confirm('ログだけ消去しますか？')){state.logs=[];renderLog()}};
+function handleVoice(raw){const s=raw.replace(/\s/g,'');$('voiceStatus').textContent='認識：'+raw;if(/CPR開始|シーピーアール開始|心肺蘇生開始/.test(s))return cprStart();if(/LT挿入完了|エルティー挿入完了|LT完了/.test(s))return airway('LT');if(/挿管完了|そうかん完了/.test(s))return airway('挿管');if(/IV確保完了|アイブイ確保完了|静脈路確保完了/.test(s))return iv();if(/アドレナリン/.test(s))return epi();if(/ショック|除細動/.test(s))return shock();if(/心マ止め|心臓マッサージ止め|圧迫中断|胸骨圧迫中断/.test(s))return cprStop();if(/心マ開始|心臓マッサージ開始|圧迫開始|胸骨圧迫開始|圧迫再開/.test(s))return cprRestart()}
+function setupVoice(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){$('voiceBtn').textContent='音声非対応';$('voiceStatus').textContent='このブラウザは音声認識に未対応です。Chrome系ブラウザ推奨。';return null}const r=new SR();r.lang='ja-JP';r.continuous=true;r.interimResults=false;r.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)handleVoice(e.results[i][0].transcript)}};r.onend=()=>{if(state.voiceOn){try{r.start()}catch(e){}}};r.onerror=e=>{$('voiceStatus').textContent='音声認識エラー：'+e.error};return r}
+$('voiceBtn').onclick=()=>{if(!state.recognition)state.recognition=setupVoice();if(!state.recognition)return;state.voiceOn=!state.voiceOn;if(state.voiceOn){$('voiceBtn').textContent='音声入力 ON';$('voiceStatus').textContent='音声待機中';try{state.recognition.start()}catch(e){}}else{$('voiceBtn').textContent='音声入力 OFF';$('voiceStatus').textContent='音声停止中';try{state.recognition.stop()}catch(e){}}};
+setInterval(tick,250);tick();
+</script>
+</body>
+</html>
